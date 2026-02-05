@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+import time
 from functools import lru_cache
+
+import requests
 
 import torch
 from fastapi import FastAPI, HTTPException
@@ -17,6 +20,57 @@ from samplings import temperature_sampling, top_p_sampling
 
 
 APP_TITLE = "Vihaan Music API"
+
+HF_INFERENCE_URL_DEFAULT = "https://api-inference.huggingface.co/models/sander-wood/text-to-music"
+
+def _hf_inference_generate_abc(prompt: str, top_p: float, temperature: float, max_length: int) -> str:
+    token = os.environ.get("HF_TOKEN")
+    if not token:
+        raise RuntimeError("HF_TOKEN is not set")
+
+    api_url = os.environ.get("HF_INFERENCE_URL", HF_INFERENCE_URL_DEFAULT)
+    headers = {"Authorization": f"Bearer {token}"}
+    payload = {
+        "inputs": (prompt or "").strip() or "A calm Indian jazz fusion melody.",
+        "parameters": {
+            "max_new_tokens": min(int(max_length), 1024),
+            "temperature": float(temperature),
+            "top_p": float(top_p),
+            "return_full_text": False,
+        },
+        "options": {"wait_for_model": True},
+    }
+
+    for _ in range(3):
+        r = requests.post(api_url, headers=headers, json=payload, timeout=120)
+        if r.status_code == 503:
+            try:
+                body = r.json()
+            except Exception:
+                body = {}
+            sleep_s = float(body.get("estimated_time", 5) or 5)
+            time.sleep(min(max(sleep_s, 1), 12))
+            continue
+        r.raise_for_status()
+        body = r.json()
+        out = ""
+        if isinstance(body, list) and body and isinstance(body[0], dict):
+            out = body[0].get("generated_text") or body[0].get("text") or ""
+        elif isinstance(body, dict):
+            if body.get("error"):
+                raise RuntimeError(body.get("error"))
+            out = body.get("generated_text") or body.get("text") or ""
+        else:
+            out = str(body)
+
+        out = (out or "").strip()
+        if not out:
+            raise RuntimeError("Empty output from HF Inference API")
+        if out.lstrip().startswith("X:"):
+            return out
+        return f"X:1\n{out}"
+
+    raise RuntimeError("HF Inference API returned 503 too many times")
 
 
 class PromptRequest(BaseModel):
@@ -127,6 +181,16 @@ def health():
 @app.post("/api/hf/abc")
 def hf_abc(req: HFGenerateRequest):
     try:
+        use_inference = os.environ.get("HF_USE_INFERENCE_API", "1") not in {"0", "false", "False"}
+        if use_inference and os.environ.get("HF_TOKEN"):
+            abc = _hf_inference_generate_abc(
+                prompt=req.prompt,
+                top_p=req.top_p,
+                temperature=req.temperature,
+                max_length=req.max_length,
+            )
+            return {"abc": abc}
+
         abc = _hf_generate_abc(
             prompt=req.prompt,
             top_p=req.top_p,

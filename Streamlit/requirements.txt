@@ -9,3 +9,4 @@ google-genai>=0.2
 python-dotenv>=1.0
 fastapi>=0.110
 uvicorn[standard]>=0.27
+requests>=2.31

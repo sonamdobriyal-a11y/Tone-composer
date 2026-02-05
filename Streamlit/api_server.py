@@ -49,9 +49,14 @@ class GeminiAudioRequest(PromptRequest):
 
 
 app = FastAPI(title=APP_TITLE)
+
+default_origins = ["http://localhost:5173", "http://127.0.0.1:5173", "https://tone-composer.vercel.app"]
+cors_env = os.environ.get("CORS_ALLOW_ORIGINS", "").strip()
+allow_origins = [o.strip() for o in cors_env.split(",") if o.strip()] if cors_env else default_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

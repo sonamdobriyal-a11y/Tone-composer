@@ -1,0 +1,34 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f4f8ff;
+  --ink: #173a5e;
+  --muted: #445066;
+  --accent: #ffb347;
+}
+
+html,
+body {
+  height: 100%;
+  background: radial-gradient(1200px 600px at 30% 0%, #dfe8ff 0%, #f4f8ff 60%, #ffffff 100%);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.title-font {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
